@@ -1,15 +1,16 @@
-import { SuccessResponse } from '../utils/apiResponse';
+import { SuccessMsgResponse, SuccessResponse } from '../utils/apiResponse';
 import catchAsync from '@src/utils/catchAsync';
 import { TenantModel } from '@src/model/tenant.model';
 import {
   AuthFailureError,
   BadRequestError,
+  InternalError,
   NoDataError,
   NotFoundError,
 } from '@src/utils/apiError';
 import { decrypt, encrypt, generateToken } from '@src/services/auth.service';
-import { BrandModel } from '@src/model/sub-company/brand.model';
-import { WarehouseModel } from '@src/model/sub-company/warehouse.model';
+import { TenantBrandModel } from '@src/model/sub-company/tenantBrand.model';
+import { TenantWarehouseModel } from '@src/model/sub-company/tenantWarehouse.model';
 
 // Get all tenants
 export const getAllTenants = catchAsync(async (req, res, next) => {
@@ -27,11 +28,8 @@ export const getAllTenants = catchAsync(async (req, res, next) => {
     throw next(new NotFoundError('No tenants found'));
   }
 
-  const totalPages = Math.ceil(totalTenants / itemsPerPage);
-
   return new SuccessResponse('success', {
     tenants,
-    totalPages,
     currentPage: pageCount,
     totalTenants,
   }).send(res);
@@ -52,49 +50,45 @@ export const getTenant = catchAsync(async (req, res, next) => {
 
 // Tenant sign up
 export const createTenant = catchAsync(async (req, res, next) => {
-  const { email, phoneNo, password } = req.body;
+  const { email, phoneNo, name, password, role } = req.body;
 
-  // Check if email or phone number is already registered
+  // Check if email or phoneNo is already registered
   const existingTenant = await TenantModel.findOne({
     $or: [{ email }, { phoneNo }],
-    isVerified: true,
   })
     .lean()
     .exec();
   if (existingTenant) {
-    throw next(
-      new BadRequestError('Email or phone number is already registered'),
-    );
+    throw next(new BadRequestError('Email or Phone is already registered'));
   }
 
   // Hash password
   const hashedPassword = await encrypt(password);
-  const tenant = await TenantModel.findOneAndUpdate(
-    {
-      email,
-      phoneNo,
-    },
-    {
-      password: hashedPassword,
-      isVerified: true,
-    },
-    { new: true },
-  )
-    .lean()
-    .exec();
 
-  return new SuccessResponse('success', tenant).send(res);
+  // Create new tenant
+  const newTenant = await TenantModel.create({
+    email,
+    phoneNo,
+    name,
+    password: hashedPassword,
+    role,
+  });
+
+  if (!newTenant) {
+    throw next(new InternalError('Tenant creation failed'));
+  }
+
+  return new SuccessMsgResponse('Tenant created successfully').send(res);
 });
 
-// Tenant login
 export const loginTenant = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
-
   // Find tenant by email
   const tenant = await TenantModel.findOne({ email })
-    .populate('role', 'roleId')
+    .populate('role', 'userPermissions productPermissions')
     .lean()
     .exec();
+
   if (!tenant) {
     throw next(new NotFoundError(`Tenant with ${email} not found`));
   }
@@ -106,8 +100,29 @@ export const loginTenant = catchAsync(async (req, res, next) => {
     throw next(new AuthFailureError(`Invalid password`));
   }
 
+  // Extract user and product permissions
+  const { userPermissions, productPermissions } = tenant.role;
+
+  // Extract and filter permissions
+  const filterPermissions = (
+    permissions: Record<string, any>,
+  ): Record<string, any> => {
+    return Object.entries(permissions)
+      .filter(([_, value]) => value)
+      .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+  };
+
+  const extractedUserPermissions = filterPermissions(userPermissions);
+  const extractedProductPermissions = filterPermissions(productPermissions);
+
   // Create and send JWT token
-  const token = generateToken({ id: tenant._id, roleId: tenant.role?.roleId });
+  const token = generateToken({
+    id: tenant._id,
+    userType: 'tenant',
+    userPermissions: extractedUserPermissions,
+    productPermissions: extractedProductPermissions,
+  });
+
   return new SuccessResponse('success', { token, tenant }).send(res);
 });
 
@@ -123,7 +138,7 @@ export const updateTenant = catchAsync(async (req, res, next) => {
     countryOrigin: req.body.countryOrigin,
     website: req.body.website,
   };
-  const newBrand = await BrandModel.create(brandData);
+  const newBrand = await TenantBrandModel.create(brandData);
   if (!newBrand) {
     throw next(new NoDataError(`Failed to create brand`));
   }
@@ -143,7 +158,7 @@ export const updateTenant = catchAsync(async (req, res, next) => {
     warehouseManager: req.body.warehouseManager,
   };
 
-  const newWarehouse = await WarehouseModel.create(warehouseData);
+  const newWarehouse = await TenantWarehouseModel.create(warehouseData);
   if (!newBrand) {
     throw next(new NoDataError(`Failed to create warehouse`));
   }

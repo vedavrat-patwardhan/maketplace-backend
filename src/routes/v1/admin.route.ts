@@ -13,7 +13,6 @@ import {
   loginAdmin,
   updateAdmin,
 } from '@src/controller/admin.controller';
-import authMiddleware from '@src/middleware/auth';
 import { idSchema } from '@src/validation/common.validation';
 
 export const adminRouter: Router = Router();
@@ -143,7 +142,7 @@ adminRouter.post('/login', validate({ body: loginSchema }), loginAdmin);
  *       500:
  *         description: Failed to fetch admins
  */
-adminRouter.get('/', authMiddleware(2), getAllAdmins); //This is paginated route pass itemsPerPage & pageNo from query params
+adminRouter.get('/', getAllAdmins); //This is paginated route pass itemsPerPage & pageNo from query params
 
 /**
  * @swagger
@@ -172,7 +171,6 @@ adminRouter.get('/', authMiddleware(2), getAllAdmins); //This is paginated route
 
 adminRouter.get(
   '/:id',
-  authMiddleware(2),
   validate({ params: idSchema }),
   getAdminById,
 );
