@@ -1,4 +1,3 @@
-import app from '@src/app';
 import Joi from 'joi';
 
 const retailPricingSchema = Joi.object({
