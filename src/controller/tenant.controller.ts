@@ -64,12 +64,31 @@ export const createTenant = catchAsync(async (req, res, next) => {
   // Hash password
   const hashedPassword = await encrypt(password);
 
-  await existingTenant
-    .update({ password: hashedPassword, name, role }, { new: true })
-    .lean()
-    .exec();
+  const updatedTenant = await TenantModel.findOneAndUpdate(
+    { _id: existingTenant._id },
+    { password: hashedPassword, name, role },
+    { new: true }
+  ).lean().exec();
 
-  return new SuccessMsgResponse('Tenant updated successfully').send(res);
+  if (!updatedTenant) {
+    throw next(new BadRequestError('No tenant found with this id'));
+  }
+
+  // Populate role after successful update
+  const { userPermissions, productPermissions } = updatedTenant.role;
+
+  // Generate token
+  const token = generateToken({
+    id: updatedTenant._id,
+    userType: 'tenant',
+    userPermissions: userPermissions,
+    productPermissions: productPermissions,
+  });
+
+  return new SuccessResponse('Tenant updated successfully', {
+    token,
+    tenant: updatedTenant,
+  }).send(res);
 });
 
 export const loginTenant = catchAsync(async (req, res, next) => {
