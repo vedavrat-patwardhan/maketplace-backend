@@ -29,6 +29,7 @@ import {
   createTenantCompanySchema,
   updateBankingInfoSchema,
   updateBasicInfoSchema,
+  verifyGstSchema,
 } from '@src/validation/tenantCompany.validation';
 import {
   createTenantCompany,
@@ -170,6 +171,56 @@ tenantRouter.post(
 );
 
 //*PATCH ROUTE
+
+/**
+ * @swagger
+ * /v1/tenant/verify-gstin/{id}:
+ *   patch:
+ *     tags:
+ *       - Tenant
+ *     summary: Verify and add gstin details
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The id of the company
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               gstin:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Gst verified and added successfully
+ *       400:
+ *         description: Invalid input
+ *       500:
+ *         description: Failed to update company details
+ */
+
+tenantRouter.patch(
+  '/verify-gstin/:id',
+  authMiddleware({
+    productPermissions: {
+      createProduct: true,
+      editProduct: true,
+      deleteProduct: true,
+      productDetailReport: true,
+    },
+    userPermissions: { salesReports: true },
+  }),
+  validate({ body: verifyGstSchema, params: idSchema }),
+  updateTenantCompany,
+);
+
 /**
  * @swagger
  * /v1/tenant/company-basic-details/{id}:
