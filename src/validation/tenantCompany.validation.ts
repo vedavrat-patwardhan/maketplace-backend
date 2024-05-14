@@ -7,6 +7,10 @@ export const createTenantCompanySchema = Joi.object({
   aadharCard: Joi.string(),
 });
 
+export const verifyGstSchema = Joi.object({
+  gstin: Joi.string().required(),
+});
+
 export const updateBasicInfoSchema = Joi.object({
   businessOwnerName: Joi.string(),
   address: Joi.string(),
