@@ -87,7 +87,6 @@ const userSchema = new Schema<IUser>({
       ref: 'Coupon',
     },
   ],
-
 });
 
 const UserModel = model<IUser>('User', userSchema);
