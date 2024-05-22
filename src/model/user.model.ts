@@ -1,6 +1,8 @@
 import { Schema, model, Document, PopulatedDoc } from 'mongoose';
 import { IRole } from './role.model';
 import { ITenantProduct } from './tenantProduct.model';
+import { ICoupons } from './coupon.model';
+import { ITenant } from './tenant.model';
 
 interface IUser extends Document {
   firstName: string;
@@ -30,6 +32,9 @@ interface IUser extends Document {
     quantity: number;
   }>;
   role?: PopulatedDoc<Schema.Types.ObjectId & IRole>;
+  usedCoupons: PopulatedDoc<Schema.Types.ObjectId & ICoupons>[];
+  tenantId:PopulatedDoc<Schema.Types.ObjectId & ITenant>;
+  domain: string;
 }
 
 // Define the User schema
@@ -79,7 +84,19 @@ const userSchema = new Schema<IUser>({
     ref: 'Role',
     default: '661b9cf0b68b1b70fd594ed6',
   },
+  usedCoupons: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'Coupon',
+    },
+  ],
+  tenantId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Tenant',
+  },
 });
+
+userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
 
 const UserModel = model<IUser>('User', userSchema);
 
