@@ -57,6 +57,11 @@ export const organizationDetailsSchema = Joi.object({
   gstCertificate: Joi.string(),
   organizationEmail: Joi.string().email(),
   organizationContact: Joi.string(),
+  businessOwnerName: Joi.string(),
+  businessOwnerEmail: Joi.string().email(),
+  businessOwnerContact: Joi.string(),
+  panNumber: Joi.string(),
+  businessModel: Joi.string(),
 });
 
 export const updateBankingInfoSchema = Joi.object({
